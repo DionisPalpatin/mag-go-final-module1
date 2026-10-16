@@ -1,12 +1,14 @@
 package trainings
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Yandex-Practicum/tracker/internal/personaldata"
+	"github.com/Yandex-Practicum/tracker/internal/spentenergy"
 )
 
 type Training struct {
@@ -19,7 +21,7 @@ type Training struct {
 
 func (t *Training) Parse(datastring string) (err error) {
 	values := strings.Split(datastring, ",")
-	if len(values) < 3 {
+	if len(values) != 3 {
 		err = fmt.Errorf("в строке %s не хватает данных либо формат строки неправильный", datastring)
 		return
 	}
@@ -38,11 +40,32 @@ func (t *Training) Parse(datastring string) (err error) {
 }
 
 func (t Training) ActionInfo() (string, error) {
-	fmt.Printf(
-		"Тип тренировки: Бег" +
-			"Длительность: 0.75 ч." +
-			"Дистанция: 10.00 км." +
-			"Скорость: 13.34 км/ч" +
-			"Сожгли калорий: 18621.75",
+	var calories float64 = 0
+	var err error = nil
+	switch t.TrainingType {
+		case "Бег":
+			calories, err = spentenergy.RunningSpentCalories(t.Steps, t.Weight, t.Height, t.Duration)
+		case "Ходьба":
+			calories, err = spentenergy.WalkingSpentCalories(t.Steps, t.Weight, t.Height, t.Duration)
+		default:
+			err = errors.New("неизвестный тип тренировки")
+	}
+
+	if err != nil {
+		return "", err
+	}
+	
+	dist := spentenergy.Distance(t.Steps, t.Height)
+	speed := spentenergy.MeanSpeed(t.Steps, t.Height, t.Duration)	
+
+	res_str := fmt.Sprintf(
+		"Тип тренировки: %s\n" +
+		"Длительность: %v ч.\n" +
+		"Дистанция: %f км.\n" +
+		"Скорость: %f км/ч\n" +
+		"Сожгли калорий: %f",
+		t.TrainingType, t.Duration, dist, speed, calories,
 	)
+
+	return res_str, nil
 }
